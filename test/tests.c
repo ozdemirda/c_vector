@@ -120,7 +120,13 @@ TEST(cvectors, reset) {
   cvector_destroy(cvec);
 }
 
-void square_int_elem(uint32_t, void* elem, void*) {
+void square_int_elem(uint32_t index, void* elem, void* args) {
+  // The following if block is there to make the compiler happy,
+  // it doesn't mean anything.
+  if (index == (uint32_t)-1) {
+    *(int*)args = 0;
+  }
+
   *(int*)elem *= *(int*)elem;
 }
 
@@ -145,7 +151,13 @@ TEST(cvectors, exec_func_on_elem) {
   cvector_destroy(cvec);
 }
 
-void incr_int_elem(uint32_t, void* elem, void* args) {
+void incr_int_elem(uint32_t index, void* elem, void* args) {
+  // The following if block is there to make the compiler happy,
+  // it doesn't mean anything.
+  if (index == (uint32_t)-1) {
+    *(int*)args = 0;
+  }
+
   *(int*)elem += (unsigned long)args;
 }
 
@@ -167,7 +179,13 @@ TEST(cvectors, exec_for_each_wr) {
   cvector_destroy(cvec);
 }
 
-void add_int_elem_to_sum(uint32_t, const void* elem, void* args) {
+void add_int_elem_to_sum(uint32_t index, const void* elem, void* args) {
+  // The following if block is there to make the compiler happy,
+  // it doesn't mean anything.
+  if (index == (uint32_t)-1) {
+    *(int*)args = 0;
+  }
+
   int* sum = (int*)args;
   *sum += *(int*)elem;
 }
@@ -219,7 +237,15 @@ TEST(cvectors, scaling) {
   cvector_destroy(cvec);
 }
 
-void zero_int_elem(uint32_t, void* elem, void*) { *(int*)elem *= 0; }
+void zero_int_elem(uint32_t index, void* elem, void* args) {
+  // The following if block is there to make the compiler happy,
+  // it doesn't mean anything.
+  if (index == (uint32_t)-1) {
+    *(int*)args = 0;
+  }
+
+  *(int*)elem *= 0;
+}
 
 TEST(cvectors, constructive_macros) {
   CVEC_CONSTRUCT(vec, int);
