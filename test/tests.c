@@ -105,6 +105,65 @@ TEST(cvectors, simple_pop_backs) {
   cvector_destroy(cvec);
 }
 
+TEST(cvectors, different_sizes) {
+  {
+    cvector* cvec = cvector_create(sizeof(long));
+
+    REQUIRE_EQ((int)cvector_push_back(cvec, &(long){1}), (int)true);
+    REQUIRE_EQ((int)cvector_push_back(cvec, &(long){2}), (int)true);
+
+    REQUIRE_EQ(cvector_elem_count(cvec), 2);
+
+    long target;
+    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(target, 2);
+    REQUIRE_EQ(cvector_elem_count(cvec), 1);
+    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(target, 1);
+    REQUIRE_EQ(cvector_elem_count(cvec), 0);
+
+    cvector_destroy(cvec);
+  }
+
+  {
+    cvector* cvec = cvector_create(sizeof(char));
+
+    REQUIRE_EQ((int)cvector_push_back(cvec, &(char){1}), (int)true);
+    REQUIRE_EQ((int)cvector_push_back(cvec, &(char){2}), (int)true);
+
+    REQUIRE_EQ(cvector_elem_count(cvec), 2);
+
+    char target;
+    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(target, 2);
+    REQUIRE_EQ(cvector_elem_count(cvec), 1);
+    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(target, 1);
+    REQUIRE_EQ(cvector_elem_count(cvec), 0);
+
+    cvector_destroy(cvec);
+  }
+
+  {
+    cvector* cvec = cvector_create(sizeof(short));
+
+    REQUIRE_EQ((int)cvector_push_back(cvec, &(short){1}), (int)true);
+    REQUIRE_EQ((int)cvector_push_back(cvec, &(short){2}), (int)true);
+
+    REQUIRE_EQ(cvector_elem_count(cvec), 2);
+
+    short target;
+    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(target, 2);
+    REQUIRE_EQ(cvector_elem_count(cvec), 1);
+    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(target, 1);
+    REQUIRE_EQ(cvector_elem_count(cvec), 0);
+
+    cvector_destroy(cvec);
+  }
+}
+
 TEST(cvectors, reset) {
   cvector* cvec = cvector_create(sizeof(int));
 
