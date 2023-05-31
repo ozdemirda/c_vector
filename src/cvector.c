@@ -27,11 +27,15 @@ SOFTWARE.
 #include <stdlib.h>
 #include <string.h>
 
+#define mem_alloc(size) malloc(size)
+#define mem_calloc(elem_count, elem_size) calloc(elem_count, elem_size)
+#define mem_realloc(ptr, new_size) realloc(ptr, new_size)
+#define mem_free(ptr) free(ptr)
+
 const uint32_t minimum_capacity = 4;
 const uint32_t scaling_factor = 2;
 
 struct cvector {
-  pthread_rwlock_t lock;
   uint32_t elem_size;
   uint32_t elem_count;
   uint32_t capacity;
@@ -40,9 +44,8 @@ struct cvector {
 
 void __cvector_destroy(cvector* v) {
   if (v) {
-    pthread_rwlock_destroy(&v->lock);
-    free(v->data_ptr);
-    free(v);
+    mem_free(v->data_ptr);
+    mem_free(v);
   }
 }
 
@@ -51,18 +54,13 @@ cvector* cvector_create(uint32_t elem_size) {
     return NULL;
   }
 
-  cvector* v = calloc(1, sizeof(cvector));
+  cvector* v = mem_calloc(1, sizeof(cvector));
   if (!v) {
     return NULL;
   }
 
-  v->data_ptr = malloc(minimum_capacity * elem_size);
+  v->data_ptr = mem_alloc(minimum_capacity * elem_size);
   if (!v->data_ptr) {
-    __cvector_destroy(v);
-    return NULL;
-  }
-
-  if (pthread_rwlock_init(&v->lock, NULL) != 0) {
     __cvector_destroy(v);
     return NULL;
   }
@@ -81,7 +79,7 @@ bool scale_the_cvector_size_up(cvector* v) {
 
   void* orig = v->data_ptr;
   v->data_ptr =
-      realloc(v->data_ptr, scaling_factor * v->capacity * v->elem_size);
+      mem_realloc(v->data_ptr, scaling_factor * v->capacity * v->elem_size);
   if (!v->data_ptr) {
     v->data_ptr = orig;
     return false;
@@ -102,7 +100,7 @@ void scale_the_cvector_size_down(cvector* v) {
 
   void* orig = v->data_ptr;
   v->data_ptr =
-      realloc(v->data_ptr, (v->capacity / scaling_factor) * v->elem_size);
+      mem_realloc(v->data_ptr, (v->capacity / scaling_factor) * v->elem_size);
   if (!v->data_ptr) {
     v->data_ptr = orig;
     return;
@@ -132,8 +130,6 @@ bool cvector_push_back(cvector* v, const void* new_elem) {
 
   bool result = true;
 
-  pthread_rwlock_wrlock(&v->lock);
-
   if (v->elem_count < v->capacity) {
     assign((void*)((unsigned long)v->data_ptr + v->elem_count * v->elem_size),
            new_elem, v->elem_size);
@@ -151,8 +147,6 @@ bool cvector_push_back(cvector* v, const void* new_elem) {
     }
   }
 
-  pthread_rwlock_unlock(&v->lock);
-
   return result;
 }
 
@@ -162,8 +156,6 @@ bool cvector_pop_back(cvector* v, void* target_elem) {
   }
 
   bool result = false;
-
-  pthread_rwlock_wrlock(&v->lock);
 
   if (v->elem_count > 0) {
     result = true;
@@ -178,8 +170,6 @@ bool cvector_pop_back(cvector* v, void* target_elem) {
     }
   }
 
-  pthread_rwlock_unlock(&v->lock);
-
   return result;
 }
 
@@ -190,16 +180,12 @@ bool cvector_get_copy_at(cvector* v, uint32_t index, void* target_elem) {
 
   bool result = false;
 
-  pthread_rwlock_rdlock(&v->lock);
-
   if (v->elem_count > 0 && index < v->elem_count) {
     assign(target_elem,
            (void*)((unsigned long)v->data_ptr + index * v->elem_size),
            v->elem_size);
     result = true;
   }
-
-  pthread_rwlock_unlock(&v->lock);
 
   return result;
 }
@@ -211,15 +197,11 @@ bool cvector_get_ptr_at(cvector* v, uint32_t index, void** target_elem_ptr) {
 
   bool result = false;
 
-  pthread_rwlock_rdlock(&v->lock);
-
   if (v->elem_count > 0 && index < v->elem_count) {
     *target_elem_ptr =
         (void*)((unsigned long)v->data_ptr + index * v->elem_size);
     result = true;
   }
-
-  pthread_rwlock_unlock(&v->lock);
 
   return result;
 }
@@ -229,15 +211,7 @@ uint32_t cvector_elem_count(cvector* v) {
     return 0;
   }
 
-  uint32_t result = 0;
-
-  pthread_rwlock_rdlock(&v->lock);
-
-  result = v->elem_count;
-
-  pthread_rwlock_unlock(&v->lock);
-
-  return result;
+  return v->elem_count;
 }
 
 void cvector_reset(cvector* v) {
@@ -245,10 +219,8 @@ void cvector_reset(cvector* v) {
     return;
   }
 
-  pthread_rwlock_wrlock(&v->lock);
-
   void* orig = v->data_ptr;
-  v->data_ptr = realloc(v->data_ptr, minimum_capacity * v->elem_size);
+  v->data_ptr = mem_realloc(v->data_ptr, minimum_capacity * v->elem_size);
   if (!v->data_ptr) {
     // Capacity should remain unchanged if reallocation fails.
     v->data_ptr = orig;
@@ -256,64 +228,15 @@ void cvector_reset(cvector* v) {
     v->capacity = minimum_capacity;
   }
   v->elem_count = 0;
-
-  pthread_rwlock_unlock(&v->lock);
 }
 
-bool cvector_exec_func_on_elem(cvector* v, uint32_t index,
-                               void (*callback)(uint32_t index, void* elem,
-                                                void* args),
-                               void* args) {
-  if (!v || !callback) {
-    return false;
-  }
-
-  bool result = false;
-
-  pthread_rwlock_wrlock(&v->lock);
-
-  if (v->elem_count > 0 && index < v->elem_count) {
-    (*callback)(index,
-                (void*)((unsigned long)v->data_ptr + index * v->elem_size),
-                args);
-    result = true;
-  }
-
-  pthread_rwlock_unlock(&v->lock);
-
-  return result;
-}
-
-void cvector_exec_for_each_rd(cvector* v,
-                              void (*rd_callback)(uint32_t index,
-                                                  const void* elem, void* args),
-                              void* args) {
-  if (!v || !rd_callback) {
-    return;
-  }
-
-  pthread_rwlock_rdlock(&v->lock);
-
-  unsigned long data_ptr = (unsigned long)v->data_ptr;
-  uint32_t elem_size = v->elem_size;
-  uint32_t elem_count = v->elem_count;
-
-  for (uint32_t i = 0; i < elem_count; ++i) {
-    (*rd_callback)(i, (void*)(data_ptr + i * elem_size), args);
-  }
-
-  pthread_rwlock_unlock(&v->lock);
-}
-
-void cvector_exec_for_each_wr(cvector* v,
-                              void (*rw_callback)(uint32_t index, void* elem,
-                                                  void* args),
-                              void* args) {
+void cvector_exec_for_each(cvector* v,
+                           void (*rw_callback)(uint32_t index, void* elem,
+                                               void* args),
+                           void* args) {
   if (!v || !rw_callback) {
     return;
   }
-
-  pthread_rwlock_wrlock(&v->lock);
 
   unsigned long data_ptr = (unsigned long)v->data_ptr;
   uint32_t elem_size = v->elem_size;
@@ -322,8 +245,6 @@ void cvector_exec_for_each_wr(cvector* v,
   for (uint32_t i = 0; i < elem_count; ++i) {
     (*rw_callback)(i, (void*)(data_ptr + i * elem_size), args);
   }
-
-  pthread_rwlock_unlock(&v->lock);
 }
 
 #ifdef RUNNING_UNIT_TESTS
@@ -332,12 +253,6 @@ uint32_t cvector_get_capacity(cvector* v) {
     return 0;
   }
 
-  uint32_t c = 0;
-
-  pthread_rwlock_rdlock(&v->lock);
-  c = v->capacity;
-  pthread_rwlock_unlock(&v->lock);
-
-  return c;
+  return v->capacity;
 }
 #endif

@@ -179,37 +179,6 @@ TEST(cvectors, reset) {
   cvector_destroy(cvec);
 }
 
-void square_int_elem(uint32_t index, void* elem, void* args) {
-  // The following if block is there to make the compiler happy,
-  // it doesn't mean anything.
-  if (index == (uint32_t)-1) {
-    *(int*)args = 0;
-  }
-
-  *(int*)elem *= *(int*)elem;
-}
-
-TEST(cvectors, exec_func_on_elem) {
-  cvector* cvec = cvector_create(sizeof(int));
-
-  for (int i = 0; i < 4; ++i) {
-    cvector_push_back(cvec, &i);
-  }
-
-  for (int i = 0; i < 4; ++i) {
-    REQUIRE_EQ((int)cvector_exec_func_on_elem(cvec, i, square_int_elem, NULL),
-               (int)true);
-  }
-
-  for (int i = 0; i < 4; ++i) {
-    int target = -2;
-    REQUIRE_EQ((int)cvector_get_copy_at(cvec, i, &target), (int)true);
-    REQUIRE_EQ(target, i * i);
-  }
-
-  cvector_destroy(cvec);
-}
-
 void incr_int_elem(uint32_t index, void* elem, void* args) {
   // The following if block is there to make the compiler happy,
   // it doesn't mean anything.
@@ -227,7 +196,7 @@ TEST(cvectors, exec_for_each_wr) {
     cvector_push_back(cvec, &i);
   }
 
-  cvector_exec_for_each_wr(cvec, incr_int_elem, (void*)3);
+  cvector_exec_for_each(cvec, incr_int_elem, (void*)3);
 
   for (int i = 0; i < 4; ++i) {
     int target = -2;
@@ -238,7 +207,7 @@ TEST(cvectors, exec_for_each_wr) {
   cvector_destroy(cvec);
 }
 
-void add_int_elem_to_sum(uint32_t index, const void* elem, void* args) {
+void add_int_elem_to_sum(uint32_t index, void* elem, void* args) {
   // The following if block is there to make the compiler happy,
   // it doesn't mean anything.
   if (index == (uint32_t)-1) {
@@ -257,7 +226,7 @@ TEST(cvectors, exec_for_each_rd) {
   }
 
   int sum = 0;
-  cvector_exec_for_each_rd(cvec, add_int_elem_to_sum, &sum);
+  cvector_exec_for_each(cvec, add_int_elem_to_sum, &sum);
   REQUIRE_EQ(sum, 6);  // 0 + 1 + 2 + 3
 
   for (int i = 0; i < 4; ++i) {
@@ -296,16 +265,6 @@ TEST(cvectors, scaling) {
   cvector_destroy(cvec);
 }
 
-void zero_int_elem(uint32_t index, void* elem, void* args) {
-  // The following if block is there to make the compiler happy,
-  // it doesn't mean anything.
-  if (index == (uint32_t)-1) {
-    *(int*)args = 0;
-  }
-
-  *(int*)elem *= 0;
-}
-
 TEST(cvectors, constructive_macros) {
   CVEC_CONSTRUCT(vec, int);
 
@@ -328,21 +287,23 @@ TEST(cvectors, constructive_macros) {
   }
 
   int sum = 0;
-  CVEC_FOR_EACH_RD(vec, add_int_elem_to_sum, &sum);
+  CVEC_FOR_EACH(vec, add_int_elem_to_sum, &sum);
   REQUIRE_EQ(sum, 45);  // 9*(9+1)/2
 
-  CVEC_FOR_EACH_WR(vec, incr_int_elem, 1);
+  CVEC_FOR_EACH(vec, incr_int_elem, 1);
 
   sum = 0;
-  CVEC_FOR_EACH_RD(vec, add_int_elem_to_sum, &sum);
+  CVEC_FOR_EACH(vec, add_int_elem_to_sum, &sum);
   REQUIRE_EQ(sum, 55);  // 10*(10+1)/2
 
   for (int i = 0; i < 10; ++i) {
-    CVEC_EXEC_FUNC_AT(vec, i, zero_int_elem, NULL);
+    int* ptr = NULL;
+    CVEC_PTR_AT(ptr, vec, i);
+    *ptr = 0;
   }
 
   sum = 0;
-  CVEC_FOR_EACH_RD(vec, add_int_elem_to_sum, &sum);
+  CVEC_FOR_EACH(vec, add_int_elem_to_sum, &sum);
   REQUIRE_EQ(sum, 0);  // All elements were zeroed
 
   CVEC_DESTRUCT(vec);
@@ -371,21 +332,23 @@ TEST(cvectors, declarative_macros) {
   }
 
   int sum = 0;
-  CVEC_FOR_EACH_RD(vec, add_int_elem_to_sum, &sum);
+  CVEC_FOR_EACH(vec, add_int_elem_to_sum, &sum);
   REQUIRE_EQ(sum, 45);  // 9*(9+1)/2
 
-  CVEC_FOR_EACH_WR(vec, incr_int_elem, 1);
+  CVEC_FOR_EACH(vec, incr_int_elem, 1);
 
   sum = 0;
-  CVEC_FOR_EACH_RD(vec, add_int_elem_to_sum, &sum);
+  CVEC_FOR_EACH(vec, add_int_elem_to_sum, &sum);
   REQUIRE_EQ(sum, 55);  // 10*(10+1)/2
 
   for (int i = 0; i < 10; ++i) {
-    CVEC_EXEC_FUNC_AT(vec, i, zero_int_elem, NULL);
+    int* ptr = NULL;
+    CVEC_PTR_AT(ptr, vec, i);
+    *ptr = 0;
   }
 
   sum = 0;
-  CVEC_FOR_EACH_RD(vec, add_int_elem_to_sum, &sum);
+  CVEC_FOR_EACH(vec, add_int_elem_to_sum, &sum);
   REQUIRE_EQ(sum, 0);  // All elements were zeroed
 
   CVEC_DESTRUCT(vec);

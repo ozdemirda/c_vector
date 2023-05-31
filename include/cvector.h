@@ -38,22 +38,10 @@ uint32_t cvector_elem_count(cvector* v);
 
 void cvector_reset(cvector* v);
 
-bool cvector_exec_func_on_elem(cvector* v, uint32_t index,
-                               void (*callback)(uint32_t index, void* elem,
-                                                void* args),
-                               void* args);
-
-void cvector_exec_for_each_rd(cvector* v,
-                              void (*read_only_callback)(uint32_t index,
-                                                         const void* elem,
-                                                         void* args),
-                              void* args);
-
-void cvector_exec_for_each_wr(cvector* v,
-                              void (*read_write_callback)(uint32_t index,
-                                                          void* elem,
-                                                          void* args),
-                              void* args);
+void cvector_exec_for_each(cvector* v,
+                           void (*read_write_callback)(uint32_t index,
+                                                       void* elem, void* args),
+                           void* args);
 
 // Some useful macros
 #define CVEC_DECLARE(v) cvector* v
@@ -83,11 +71,5 @@ void cvector_exec_for_each_wr(cvector* v,
 
 #define CVEC_RESET(v) cvector_reset(v)
 
-#define CVEC_EXEC_FUNC_AT(v, index, func, args) \
-  if (!cvector_exec_func_on_elem(v, index, func, args)) assert(false)
-
-#define CVEC_FOR_EACH_RD(v, reader_f, args) \
-  cvector_exec_for_each_rd(v, reader_f, (void*)args)
-
-#define CVEC_FOR_EACH_WR(v, writer_f, args) \
-  cvector_exec_for_each_wr(v, writer_f, (void*)args)
+#define CVEC_FOR_EACH(v, writer_f, args) \
+  cvector_exec_for_each(v, writer_f, (void*)args)
