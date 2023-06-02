@@ -1,7 +1,6 @@
 #include <cvector.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
 
 #include <tau/tau.h>
 TAU_MAIN()  // sets up Tau (+ main function)
@@ -9,37 +8,42 @@ TAU_MAIN()  // sets up Tau (+ main function)
 // C_VECTOR TESTS
 
 TEST(cvectors, create_fails) {
-  cvector* cvec = cvector_create(0);
+  char* err_str = NULL;
+  cvector* cvec = cvector_create(0, &err_str);
   REQUIRE_EQ((void*)cvec, NULL);
+  REQUIRE_NE((void*)err_str, NULL);
 }
 
 TEST(cvectors, create_succeeds) {
-  cvector* cvec = cvector_create(sizeof(int));
+  char* err_str = NULL;
+  cvector* cvec = cvector_create(sizeof(int), &err_str);
   REQUIRE_NE((void*)cvec, NULL);
+  REQUIRE_EQ((void*)err_str, NULL);
   cvector_destroy(cvec);
   REQUIRE_EQ((void*)cvec, NULL);
 }
 
 TEST(cvectors, simple_push_backs) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   REQUIRE_EQ(cvector_elem_count(cvec), 0);
-  REQUIRE_EQ((int)cvector_push_back(cvec, &(int){1}), (int)true);
+  REQUIRE_EQ(cvector_push_back(cvec, &(int){1}), cvec_success);
   REQUIRE_EQ(cvector_elem_count(cvec), 1);
 
-  REQUIRE_EQ((int)cvector_push_back(cvec, &(int){1}), (int)true);
+  REQUIRE_EQ(cvector_push_back(cvec, &(int){1}), cvec_success);
   REQUIRE_EQ(cvector_elem_count(cvec), 2);
 
   cvector_destroy(cvec);
 }
 
 TEST(cvectors, access_an_index) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   int target = -2;
-  REQUIRE_EQ((int)cvector_get_copy_at(cvec, 0, &target), (int)false);
-  REQUIRE_EQ((int)cvector_get_copy_at(cvec, 1, &target), (int)false);
-  REQUIRE_EQ((int)cvector_get_copy_at(cvec, (uint32_t)-1, &target), (int)false);
+  REQUIRE_EQ(cvector_get_copy_at(cvec, 0, &target), cvec_key_not_found);
+  REQUIRE_EQ(cvector_get_copy_at(cvec, 1, &target), cvec_key_not_found);
+  REQUIRE_EQ(cvector_get_copy_at(cvec, (uint32_t)-1, &target),
+             cvec_key_not_found);
   REQUIRE_EQ(target, -2);
 
   for (int i = 0; i < 4; ++i) {
@@ -47,24 +51,25 @@ TEST(cvectors, access_an_index) {
   }
 
   for (int i = 0; i < 4; ++i) {
-    REQUIRE_EQ((int)cvector_get_copy_at(cvec, i, &target), (int)true);
+    REQUIRE_EQ(cvector_get_copy_at(cvec, i, &target), cvec_success);
     REQUIRE_EQ(target, i + 1);
   }
 
-  REQUIRE_EQ((int)cvector_get_copy_at(cvec, 5, &target), (int)false);
-  REQUIRE_EQ((int)cvector_get_copy_at(cvec, (uint32_t)-1, &target), (int)false);
+  REQUIRE_EQ(cvector_get_copy_at(cvec, 5, &target), cvec_key_not_found);
+  REQUIRE_EQ(cvector_get_copy_at(cvec, (uint32_t)-1, &target),
+             cvec_key_not_found);
 
   cvector_destroy(cvec);
 }
 
 TEST(cvectors, access_the_ptr_at_index) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   int* target = NULL;
-  REQUIRE_EQ((int)cvector_get_ptr_at(cvec, 0, (void**)&target), (int)false);
-  REQUIRE_EQ((int)cvector_get_ptr_at(cvec, 1, (void**)&target), (int)false);
-  REQUIRE_EQ((int)cvector_get_ptr_at(cvec, (uint32_t)-1, (void**)&target),
-             (int)false);
+  REQUIRE_EQ(cvector_get_ptr_at(cvec, 0, (void**)&target), cvec_key_not_found);
+  REQUIRE_EQ(cvector_get_ptr_at(cvec, 1, (void**)&target), cvec_key_not_found);
+  REQUIRE_EQ(cvector_get_ptr_at(cvec, (uint32_t)-1, (void**)&target),
+             cvec_key_not_found);
   REQUIRE_EQ((void*)target, NULL);
 
   for (int i = 0; i < 4; ++i) {
@@ -72,22 +77,22 @@ TEST(cvectors, access_the_ptr_at_index) {
   }
 
   for (int i = 0; i < 4; ++i) {
-    REQUIRE_EQ((int)cvector_get_ptr_at(cvec, i, (void**)&target), (int)true);
+    REQUIRE_EQ(cvector_get_ptr_at(cvec, i, (void**)&target), cvec_success);
     REQUIRE_EQ(*target, i + 1);
   }
 
-  REQUIRE_EQ((int)cvector_get_ptr_at(cvec, 5, (void**)&target), (int)false);
-  REQUIRE_EQ((int)cvector_get_ptr_at(cvec, (uint32_t)-1, (void**)&target),
-             (int)false);
+  REQUIRE_EQ(cvector_get_ptr_at(cvec, 5, (void**)&target), cvec_key_not_found);
+  REQUIRE_EQ(cvector_get_ptr_at(cvec, (uint32_t)-1, (void**)&target),
+             cvec_key_not_found);
 
   cvector_destroy(cvec);
 }
 
 TEST(cvectors, simple_pop_backs) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   int target = -2;
-  REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)false);
+  REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_empty);
   REQUIRE_EQ(target, -2);
 
   REQUIRE_EQ(cvector_elem_count(cvec), 0);
@@ -95,10 +100,10 @@ TEST(cvectors, simple_pop_backs) {
   cvector_push_back(cvec, &(int){2});
   REQUIRE_EQ(cvector_elem_count(cvec), 2);
 
-  REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+  REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
   REQUIRE_EQ(target, 2);
   REQUIRE_EQ(cvector_elem_count(cvec), 1);
-  REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+  REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
   REQUIRE_EQ(target, 1);
   REQUIRE_EQ(cvector_elem_count(cvec), 0);
 
@@ -107,18 +112,18 @@ TEST(cvectors, simple_pop_backs) {
 
 TEST(cvectors, different_sizes) {
   {
-    cvector* cvec = cvector_create(sizeof(long));
+    cvector* cvec = cvector_create(sizeof(long), NULL);
 
-    REQUIRE_EQ((int)cvector_push_back(cvec, &(long){1}), (int)true);
-    REQUIRE_EQ((int)cvector_push_back(cvec, &(long){2}), (int)true);
+    REQUIRE_EQ(cvector_push_back(cvec, &(long){1}), cvec_success);
+    REQUIRE_EQ(cvector_push_back(cvec, &(long){2}), cvec_success);
 
     REQUIRE_EQ(cvector_elem_count(cvec), 2);
 
     long target;
-    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
     REQUIRE_EQ(target, 2);
     REQUIRE_EQ(cvector_elem_count(cvec), 1);
-    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
     REQUIRE_EQ(target, 1);
     REQUIRE_EQ(cvector_elem_count(cvec), 0);
 
@@ -126,18 +131,18 @@ TEST(cvectors, different_sizes) {
   }
 
   {
-    cvector* cvec = cvector_create(sizeof(char));
+    cvector* cvec = cvector_create(sizeof(char), NULL);
 
-    REQUIRE_EQ((int)cvector_push_back(cvec, &(char){1}), (int)true);
-    REQUIRE_EQ((int)cvector_push_back(cvec, &(char){2}), (int)true);
+    REQUIRE_EQ(cvector_push_back(cvec, &(char){1}), cvec_success);
+    REQUIRE_EQ(cvector_push_back(cvec, &(char){2}), cvec_success);
 
     REQUIRE_EQ(cvector_elem_count(cvec), 2);
 
     char target;
-    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
     REQUIRE_EQ(target, 2);
     REQUIRE_EQ(cvector_elem_count(cvec), 1);
-    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
     REQUIRE_EQ(target, 1);
     REQUIRE_EQ(cvector_elem_count(cvec), 0);
 
@@ -145,18 +150,18 @@ TEST(cvectors, different_sizes) {
   }
 
   {
-    cvector* cvec = cvector_create(sizeof(short));
+    cvector* cvec = cvector_create(sizeof(short), NULL);
 
-    REQUIRE_EQ((int)cvector_push_back(cvec, &(short){1}), (int)true);
-    REQUIRE_EQ((int)cvector_push_back(cvec, &(short){2}), (int)true);
+    REQUIRE_EQ(cvector_push_back(cvec, &(short){1}), cvec_success);
+    REQUIRE_EQ(cvector_push_back(cvec, &(short){2}), cvec_success);
 
     REQUIRE_EQ(cvector_elem_count(cvec), 2);
 
     short target;
-    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
     REQUIRE_EQ(target, 2);
     REQUIRE_EQ(cvector_elem_count(cvec), 1);
-    REQUIRE_EQ((int)cvector_pop_back(cvec, &target), (int)true);
+    REQUIRE_EQ(cvector_pop_back(cvec, &target), cvec_success);
     REQUIRE_EQ(target, 1);
     REQUIRE_EQ(cvector_elem_count(cvec), 0);
 
@@ -165,7 +170,7 @@ TEST(cvectors, different_sizes) {
 }
 
 TEST(cvectors, reset) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   REQUIRE_EQ(cvector_elem_count(cvec), 0);
   for (int i = 0; i < 4; ++i) {
@@ -190,7 +195,7 @@ void incr_int_elem(uint32_t index, void* elem, void* args) {
 }
 
 TEST(cvectors, exec_for_each_wr) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   for (int i = 0; i < 4; ++i) {
     cvector_push_back(cvec, &i);
@@ -200,7 +205,7 @@ TEST(cvectors, exec_for_each_wr) {
 
   for (int i = 0; i < 4; ++i) {
     int target = -2;
-    REQUIRE_EQ((int)cvector_get_copy_at(cvec, i, &target), (int)true);
+    REQUIRE_EQ(cvector_get_copy_at(cvec, i, &target), cvec_success);
     REQUIRE_EQ(target, i + 3);
   }
 
@@ -219,7 +224,7 @@ void add_int_elem_to_sum(uint32_t index, void* elem, void* args) {
 }
 
 TEST(cvectors, exec_for_each_rd) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   for (int i = 0; i < 4; ++i) {
     cvector_push_back(cvec, &i);
@@ -231,7 +236,7 @@ TEST(cvectors, exec_for_each_rd) {
 
   for (int i = 0; i < 4; ++i) {
     int target = -2;
-    REQUIRE_EQ((int)cvector_get_copy_at(cvec, i, &target), (int)true);
+    REQUIRE_EQ(cvector_get_copy_at(cvec, i, &target), cvec_success);
     REQUIRE_EQ(target, i);
   }
 
@@ -243,7 +248,7 @@ extern const uint32_t minimum_capacity;
 extern const uint32_t scaling_factor;
 
 TEST(cvectors, scaling) {
-  cvector* cvec = cvector_create(sizeof(int));
+  cvector* cvec = cvector_create(sizeof(int), NULL);
 
   REQUIRE_EQ(cvector_elem_count(cvec), 0);
   REQUIRE_EQ(cvector_get_capacity(cvec), minimum_capacity);

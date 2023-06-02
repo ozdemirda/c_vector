@@ -23,7 +23,6 @@ SOFTWARE.
 */
 
 #include <cvector.h>
-#include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -31,6 +30,10 @@ SOFTWARE.
 #define mem_calloc(elem_count, elem_size) calloc(elem_count, elem_size)
 #define mem_realloc(ptr, new_size) realloc(ptr, new_size)
 #define mem_free(ptr) free(ptr)
+
+#define stringify(s) #s
+#define x_stringify(s) stringify(s)
+#define CERR_STR(x) (__FILE__ ":" x_stringify(__LINE__) " - " x)
 
 const uint32_t minimum_capacity = 4;
 const uint32_t scaling_factor = 2;
@@ -49,20 +52,33 @@ void __cvector_destroy(cvector* v) {
   }
 }
 
-cvector* cvector_create(uint32_t elem_size) {
+cvector* cvector_create(uint32_t elem_size, char** err) {
   if (elem_size == 0) {
+    if (err) {
+      *err = CERR_STR("elem_size is zero");
+    }
     return NULL;
   }
 
   cvector* v = mem_calloc(1, sizeof(cvector));
   if (!v) {
+    if (err) {
+      *err = CERR_STR("failed to allocate vector container");
+    }
     return NULL;
   }
 
   v->data_ptr = mem_alloc(minimum_capacity * elem_size);
   if (!v->data_ptr) {
     __cvector_destroy(v);
+    if (err) {
+      *err = CERR_STR("failed to allocate data container");
+    }
     return NULL;
+  }
+
+  if (err) {
+    *err = NULL;
   }
 
   v->capacity = minimum_capacity;
@@ -123,12 +139,12 @@ static inline void assign(void* dest, const void* src, uint32_t size) {
   }
 }
 
-bool cvector_push_back(cvector* v, const void* new_elem) {
+cvector_retval_t cvector_push_back(cvector* v, const void* new_elem) {
   if (!v || !new_elem) {
-    return false;
+    return cvec_invalid_arguments;
   }
 
-  bool result = true;
+  cvector_retval_t result = cvec_success;
 
   if (v->elem_count < v->capacity) {
     assign((void*)((unsigned long)v->data_ptr + v->elem_count * v->elem_size),
@@ -139,26 +155,27 @@ bool cvector_push_back(cvector* v, const void* new_elem) {
       scale_the_cvector_size_up(v);
     }
   } else {
-    result = scale_the_cvector_size_up(v);
-    if (result) {
+    if (scale_the_cvector_size_up(v)) {
       assign((void*)((unsigned long)v->data_ptr + v->elem_count * v->elem_size),
              new_elem, v->elem_size);
       ++v->elem_count;
+    } else {
+      result = cvec_not_enough_memory;
     }
   }
 
   return result;
 }
 
-bool cvector_pop_back(cvector* v, void* target_elem) {
+cvector_retval_t cvector_pop_back(cvector* v, void* target_elem) {
   if (!v || !target_elem) {
-    return false;
+    return cvec_invalid_arguments;
   }
 
-  bool result = false;
+  cvector_retval_t result = cvec_empty;
 
   if (v->elem_count > 0) {
-    result = true;
+    result = cvec_success;
     --v->elem_count;
 
     assign(target_elem,
@@ -173,34 +190,36 @@ bool cvector_pop_back(cvector* v, void* target_elem) {
   return result;
 }
 
-bool cvector_get_copy_at(cvector* v, uint32_t index, void* target_elem) {
+cvector_retval_t cvector_get_copy_at(cvector* v, uint32_t index,
+                                     void* target_elem) {
   if (!v || !target_elem) {
-    return false;
+    return cvec_invalid_arguments;
   }
 
-  bool result = false;
+  cvector_retval_t result = cvec_key_not_found;
 
   if (v->elem_count > 0 && index < v->elem_count) {
     assign(target_elem,
            (void*)((unsigned long)v->data_ptr + index * v->elem_size),
            v->elem_size);
-    result = true;
+    result = cvec_success;
   }
 
   return result;
 }
 
-bool cvector_get_ptr_at(cvector* v, uint32_t index, void** target_elem_ptr) {
+cvector_retval_t cvector_get_ptr_at(cvector* v, uint32_t index,
+                                    void** target_elem_ptr) {
   if (!v || !target_elem_ptr) {
-    return false;
+    return cvec_invalid_arguments;
   }
 
-  bool result = false;
+  cvector_retval_t result = cvec_key_not_found;
 
   if (v->elem_count > 0 && index < v->elem_count) {
     *target_elem_ptr =
         (void*)((unsigned long)v->data_ptr + index * v->elem_size);
-    result = true;
+    result = cvec_success;
   }
 
   return result;
