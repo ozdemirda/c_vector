@@ -1,7 +1,6 @@
-This library is a very minimalistic vector implementation in C. All functions
-are thread-safe. This implementation does not offer all of the APIs provided
-by the C++ vector implementation for the sake of simplicity, but it gets the
-job done.
+This library is a very minimalistic vector implementation in C. This
+implementation does not offer all of the APIs provided by the C++ vector
+implementation for the sake of simplicity, but it gets the job done.
 
 A simple usage example is below:
 
