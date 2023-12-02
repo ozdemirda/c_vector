@@ -21,7 +21,7 @@ int main() {
     CVEC_PUSH_RVALUE(vec, 5);
 
     int val = 1;
-    // Here, as vec corresponds to an integer of 4 bytes allocated on the stack,
+    // Here, as val corresponds to an integer of 4 bytes allocated on the stack,
     // it has a definite address and the library can directly operate on that.
     CVEC_PUSH(vec, val);
 
