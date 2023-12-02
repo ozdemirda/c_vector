@@ -11,10 +11,10 @@ LFLAGS = -lm -lpthread
 build:
 	gcc $(CFLAGS) $(ALL_SRC_FILES) -o tests $(LFLAGS)
 
-test:
+test: build
 	./tests
 
-memtest:
+memtest: build
 	valgrind ./tests
 
 generate_coverage_report:
@@ -28,6 +28,6 @@ generate_coverage_report:
 all: build test memtest generate_coverage_report
 
 clean:
-	rm -rf tests coverage
+	rm -rf tests coverage *.gcda *.gcdo
 
 default: build

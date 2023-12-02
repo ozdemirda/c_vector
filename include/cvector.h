@@ -8,11 +8,19 @@
 #define _GNU_SOURCE
 #endif
 
-#include <stdint.h>
-#include <stdbool.h>
 #include <assert.h>
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 typedef struct cvector cvector;
+
+typedef struct cvector_memmgmt_procs_t {
+  void* (*malloc)(size_t size);
+  void (*free)(void* ptr);
+  void* (*calloc)(size_t elem_count, size_t elem_size);
+  void* (*realloc)(void* ptr, size_t size);
+} cvector_memmgmt_procs_t;
 
 typedef enum cvector_retval_t {
   // The provided arguments are not valid
@@ -27,7 +35,10 @@ typedef enum cvector_retval_t {
   cvec_success
 } cvector_retval_t;
 
-cvector* cvector_create(uint32_t elem_size, char** err);
+cvector* cvector_create_mp(uint32_t elem_size,
+                           cvector_memmgmt_procs_t* mmgmt_procs, char** err);
+
+#define cvector_create(elem_size, err) cvector_create_mp(elem_size, NULL, err)
 
 void __cvector_destroy(cvector* v);
 

@@ -31,6 +31,14 @@ SOFTWARE.
 #define mem_realloc(ptr, new_size) realloc(ptr, new_size)
 #define mem_free(ptr) free(ptr)
 
+#define _mem_alloc(m_procs, size) \
+  (m_procs) ? m_procs->malloc(size) : mem_alloc(size)
+#define _mem_calloc(m_procs, e_count, e_size) \
+  (m_procs) ? m_procs->calloc(e_count, e_size) : mem_calloc(e_count, e_size)
+#define _mem_realloc(m_procs, ptr, new_size) \
+  (m_procs) ? m_procs->realloc(ptr, new_size) : mem_realloc(ptr, new_size)
+#define _mem_free(m_procs, ptr) (m_procs) ? m_procs->free(ptr) : mem_free(ptr)
+
 #define stringify(s) #s
 #define x_stringify(s) stringify(s)
 #define CERR_STR(x) (__FILE__ ":" x_stringify(__LINE__) " - " x)
@@ -42,25 +50,72 @@ struct cvector {
   uint32_t elem_size;
   uint32_t elem_count;
   uint32_t capacity;
+  cvector_memmgmt_procs_t* m_procs;
   void* data_ptr;
 };
 
 void __cvector_destroy(cvector* v) {
   if (v) {
-    mem_free(v->data_ptr);
-    mem_free(v);
+    if (v->m_procs) {
+      void (*free_proc)(void*) = v->m_procs->free;
+      free_proc(v->data_ptr);
+      free_proc(v->m_procs);
+      free_proc(v);
+    } else {
+      mem_free(v->data_ptr);
+      mem_free(v);
+    }
   }
 }
 
-cvector* cvector_create(uint32_t elem_size, char** err) {
+bool verify_cvector_create_inputs(uint32_t elem_size,
+                                  cvector_memmgmt_procs_t* mmgt_procs,
+                                  char** err) {
   if (elem_size == 0) {
     if (err) {
       *err = CERR_STR("elem_size is zero");
     }
+    return false;
+  }
+
+  if (mmgt_procs && (!mmgt_procs->malloc || !mmgt_procs->calloc ||
+                     !mmgt_procs->realloc || !mmgt_procs->free)) {
+    if (err) {
+      *err = CERR_STR("Detected at least one NULL memory management function");
+    }
+    return false;
+  }
+
+  return true;
+}
+
+bool populate_mem_mgmt_procs(cvector* cvec,
+                             cvector_memmgmt_procs_t* mmgmt_procs, char** err) {
+  if (mmgmt_procs) {
+    cvec->m_procs = mmgmt_procs->malloc(sizeof(cvector_memmgmt_procs_t));
+    if (!cvec->m_procs) {
+      if (err) {
+        *err = CERR_STR("failed to allocate memory mgmt procs");
+      }
+      mmgmt_procs->free(cvec);
+      return false;
+    }
+    memcpy(cvec->m_procs, mmgmt_procs, sizeof(cvector_memmgmt_procs_t));
+  } else {
+    cvec->m_procs = NULL;
+  }
+
+  return true;
+}
+
+cvector* cvector_create_mp(uint32_t elem_size,
+                           cvector_memmgmt_procs_t* mmgt_procs, char** err) {
+  if (!verify_cvector_create_inputs(elem_size, mmgt_procs, err)) {
     return NULL;
   }
 
-  cvector* v = mem_calloc(1, sizeof(cvector));
+  cvector* v;
+  v = _mem_calloc(mmgt_procs, 1, sizeof(cvector));
   if (!v) {
     if (err) {
       *err = CERR_STR("failed to allocate vector container");
@@ -68,7 +123,11 @@ cvector* cvector_create(uint32_t elem_size, char** err) {
     return NULL;
   }
 
-  v->data_ptr = mem_alloc(minimum_capacity * elem_size);
+  if (!populate_mem_mgmt_procs(v, mmgt_procs, err)) {
+    return NULL;
+  }
+
+  v->data_ptr = _mem_alloc(mmgt_procs, minimum_capacity * elem_size);
   if (!v->data_ptr) {
     __cvector_destroy(v);
     if (err) {
@@ -94,8 +153,8 @@ bool scale_the_cvector_size_up(cvector* v) {
   }
 
   void* orig = v->data_ptr;
-  v->data_ptr =
-      mem_realloc(v->data_ptr, scaling_factor * v->capacity * v->elem_size);
+  v->data_ptr = _mem_realloc(v->m_procs, v->data_ptr,
+                             scaling_factor * v->capacity * v->elem_size);
   if (!v->data_ptr) {
     v->data_ptr = orig;
     return false;
@@ -115,8 +174,8 @@ void scale_the_cvector_size_down(cvector* v) {
   }
 
   void* orig = v->data_ptr;
-  v->data_ptr =
-      mem_realloc(v->data_ptr, (v->capacity / scaling_factor) * v->elem_size);
+  v->data_ptr = _mem_realloc(v->m_procs, v->data_ptr,
+                             (v->capacity / scaling_factor) * v->elem_size);
   if (!v->data_ptr) {
     v->data_ptr = orig;
     return;
@@ -239,7 +298,8 @@ void cvector_reset(cvector* v) {
   }
 
   void* orig = v->data_ptr;
-  v->data_ptr = mem_realloc(v->data_ptr, minimum_capacity * v->elem_size);
+  v->data_ptr =
+      _mem_realloc(v->m_procs, v->data_ptr, minimum_capacity * v->elem_size);
   if (!v->data_ptr) {
     // Capacity should remain unchanged if reallocation fails.
     v->data_ptr = orig;

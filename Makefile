@@ -25,4 +25,5 @@ libcvector.so: $(OBJ_FILES)
 $(OBJECT_DIR)/%.o: $(SOURCE_DIR)/%.c $(HEADER_FILES)
 	$(CC) $(CFLAGS) $< -o $@
 clean:
-	rm -rf libcvector.so $(OBJECT_DIR) test/tests test/coverage
+	rm -rf libcvector.so $(OBJECT_DIR) test/tests test/coverage \
+	test/*.gcda test/*.gcdo

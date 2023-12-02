@@ -1,7 +1,6 @@
 #include <cvector.h>
 #include <stdlib.h>
 #include <string.h>
-
 #include <tau/tau.h>
 TAU_MAIN()  // sets up Tau (+ main function)
 
@@ -10,6 +9,38 @@ TAU_MAIN()  // sets up Tau (+ main function)
 TEST(cvectors, create_fails) {
   char* err_str = NULL;
   cvector* cvec = cvector_create(0, &err_str);
+  REQUIRE_EQ((void*)cvec, NULL);
+  REQUIRE_NE((void*)err_str, NULL);
+
+  cvec = cvector_create_mp(
+      0,
+      &(cvector_memmgmt_procs_t){
+          .malloc = NULL, .free = free, .calloc = calloc, .realloc = realloc},
+      &err_str);
+  REQUIRE_EQ((void*)cvec, NULL);
+  REQUIRE_NE((void*)err_str, NULL);
+
+  cvec = cvector_create_mp(
+      0,
+      &(cvector_memmgmt_procs_t){
+          .malloc = malloc, .free = NULL, .calloc = calloc, .realloc = realloc},
+      &err_str);
+  REQUIRE_EQ((void*)cvec, NULL);
+  REQUIRE_NE((void*)err_str, NULL);
+
+  cvec = cvector_create_mp(
+      0,
+      &(cvector_memmgmt_procs_t){
+          .malloc = malloc, .free = free, .calloc = NULL, .realloc = realloc},
+      &err_str);
+  REQUIRE_EQ((void*)cvec, NULL);
+  REQUIRE_NE((void*)err_str, NULL);
+
+  cvec = cvector_create_mp(
+      0,
+      &(cvector_memmgmt_procs_t){
+          .malloc = malloc, .free = free, .calloc = calloc, .realloc = NULL},
+      &err_str);
   REQUIRE_EQ((void*)cvec, NULL);
   REQUIRE_NE((void*)err_str, NULL);
 }
@@ -21,10 +52,37 @@ TEST(cvectors, create_succeeds) {
   REQUIRE_EQ((void*)err_str, NULL);
   cvector_destroy(cvec);
   REQUIRE_EQ((void*)cvec, NULL);
+
+  cvec = cvector_create_mp(
+      sizeof(int),
+      &(cvector_memmgmt_procs_t){
+          .malloc = malloc, .free = free, .calloc = calloc, .realloc = realloc},
+      &err_str);
+  REQUIRE_NE((void*)cvec, NULL);
+  REQUIRE_EQ((void*)err_str, NULL);
+  cvector_destroy(cvec);
+  REQUIRE_EQ((void*)cvec, NULL);
 }
 
 TEST(cvectors, simple_push_backs) {
   cvector* cvec = cvector_create(sizeof(int), NULL);
+
+  REQUIRE_EQ(cvector_elem_count(cvec), 0);
+  REQUIRE_EQ(cvector_push_back(cvec, &(int){1}), cvec_success);
+  REQUIRE_EQ(cvector_elem_count(cvec), 1);
+
+  REQUIRE_EQ(cvector_push_back(cvec, &(int){1}), cvec_success);
+  REQUIRE_EQ(cvector_elem_count(cvec), 2);
+
+  cvector_destroy(cvec);
+}
+
+TEST(cvectors, simple_push_backs_with_memmgmt_procs) {
+  cvector* cvec = cvector_create_mp(
+      sizeof(int),
+      &(cvector_memmgmt_procs_t){
+          .malloc = malloc, .free = free, .calloc = calloc, .realloc = realloc},
+      NULL);
 
   REQUIRE_EQ(cvector_elem_count(cvec), 0);
   REQUIRE_EQ(cvector_push_back(cvec, &(int){1}), cvec_success);
